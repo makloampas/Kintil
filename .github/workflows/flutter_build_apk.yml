@@ -1,0 +1,52 @@
+name: Build Flutter APK (from zip)
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "ID job dari Telegram"
+        required: true
+      zip_path:
+        description: "Path zip di repo (mis. uploads/xxx.zip)"
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Prepare workspace
+        run: |
+          mkdir -p work
+          cp "${{ inputs.zip_path }}" work/project.zip
+          cd work
+          unzip -q project.zip -d project
+
+      - name: Flutter pub get
+        working-directory: work/project
+        run: flutter pub get
+
+      - name: Build APK (release)
+        working-directory: work/project
+        run: flutter build apk --release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ inputs.job_id }}
+          path: work/project/build/app/outputs/flutter-apk/app-release.apk
